@@ -142,9 +142,9 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
         namespaces = self.kubectl.get_namespaces()
 
         if args:
-            return [ns + " " for ns in namespaces if ns.startswith(args)]
+            return ["/setns" + ns + " " for ns in namespaces if ns.startswith(args)]
         else:
-            return [ns + " " for ns in namespaces]
+            return ["/setns" + ns + " " for ns in namespaces]
 
     def do_exit(self, args):
         'Exit kubecli'
