@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+from typing import List
+
+import subprocess
+import json
+
+
+class Kubectl:
+
+    def __init__(self, kubectl_path="/usr/bin/kubectl"):
+        self._kubectl_path = kubectl_path
+
+    def _inner_run_json(self, args: list) -> dict:
+        result = subprocess.run([self._kubectl_path, *args, '-o', 'json'], capture_output=True, check=True)
+        if result.stderr:
+            print(result.stderr)
+        return json.loads(result.stdout)
+
+    def _inner_run_name(self, args: list) -> List[str]:
+        result = subprocess.run([self._kubectl_path, *args, '-o', 'name'], capture_output=True, check=True)
+        if result.stderr:
+            print(result.stderr)
+        return str(result.stdout).split('\n')
+
+    ### Public stuff ###
+    def run(self, args: list) -> int:
+        result = subprocess.run([self._kubectl_path, *args])
+        return result.returncode
+
+    def get_current_namespace(self) -> str:
+        config = self._inner_run_json(['config', 'view'])
+
+        if config['contexts']:
+            return config['contexts'][0]['context']['namespace']
+        else:
+            return '---'
+
+    def set_current_namespace(self, namespace: str) -> bool:
+        return self.run(['config', 'set-context', '--current', f'--namespace={namespace}']) == 0
+
+    def get_available_api_resources(self) -> List[str]:
+        return self._inner_run_name(['api-resources'])
