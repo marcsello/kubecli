@@ -20,7 +20,7 @@ class Kubectl:
         result = subprocess.run([self._kubectl_path, *args, '-o', 'name'], capture_output=True, check=True)
         if result.stderr:
             print(result.stderr)
-        return str(result.stdout).split('\n')
+        return list(filter(None, result.stdout.decode('utf-8').split('\n')))
 
     ### Public stuff ###
     def run(self, args: list) -> int:
