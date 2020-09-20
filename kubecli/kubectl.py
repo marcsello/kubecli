@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import List
+from typing import List, Optional
 
 import subprocess
 import json
@@ -27,13 +27,13 @@ class Kubectl:
         result = subprocess.run([self._kubectl_path, *args])
         return result.returncode
 
-    def get_current_namespace(self) -> str:
+    def get_current_namespace(self) -> Optional[str]:
         config = self._inner_run_json(['config', 'view'])
 
         if config['contexts']:
             return config['contexts'][0]['context']['namespace']
         else:
-            return '---'
+            return None
 
     def set_current_namespace(self, namespace: str) -> bool:
         return self.run(['config', 'set-context', '--current', f'--namespace={namespace}']) == 0
