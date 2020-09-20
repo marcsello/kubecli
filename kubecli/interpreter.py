@@ -5,28 +5,22 @@ from kubectl import Kubectl
 import readline
 
 
-class KubeCliInterpreter(Cmd):
+class KubeCliInterpreterBase(Cmd):
     doc_header = "Documented internal commands (type /help <topic>):"
     misc_header = "Miscellaneous help topics:"
     undoc_header = "Undocumented internal commands:"
 
-    kubectl_first_commands = [  # Copied from kubectl help
-        'create', 'expose', 'run', 'set', 'explain', 'get', 'edit', 'delete', 'rollout', 'scale', 'autoscale',
-        'certificate', 'cluster-info', 'top', 'cordon', 'uncordon', 'drain', 'taint', 'describe', 'logs', 'attach',
-        'exec', 'port-forward', 'proxy', 'cp', 'auth', 'diff', 'apply', 'patch', 'replace', 'wait', 'convert',
-        'kustomize', 'label', 'annotate', 'completion', 'alpha', 'api-resources', 'api-versions', 'config', 'plugin',
-        'version',
-    ]
+    kubectl_first_commands = []
 
     def __init__(self, kubectl: Kubectl):
         super().__init__()
-        self._kubectl = kubectl
+        self.kubectl = kubectl
         self._last_command_failed = False
         self.old_delims = None
 
     def preloop(self) -> None:
         self.old_delims = readline.get_completer_delims()
-        readline.set_completer_delims(self.old_delims.replace('-', '').replace('/', ''))
+        readline.set_completer_delims('')
 
     def postloop(self) -> None:
         readline.set_completer_delims(self.old_delims)
@@ -47,18 +41,9 @@ class KubeCliInterpreter(Cmd):
     def parseline(self, line):
         return super().parseline(line[1:])  # onecmd ensures that there is a "/"
 
-    def do_setns(self, args):
-        'Switch between namesapces'
-        if not args:
-            print("*** Invalid syntax: a single namespace expected")
-        else:
-            success = self._kubectl.set_current_namespace(args)
-            if not success:
-                self._last_command_failed = True
-
-    def run_kubectl_command(self, line: str) -> bool:
+    def run_kubectl_command(self, line: str):
         parts = line.split(' ')
-        ret = self._kubectl.run(parts)
+        ret = self.kubectl.run(parts)
         if ret != 0:
             self._last_command_failed = True
 
@@ -73,20 +58,42 @@ class KubeCliInterpreter(Cmd):
             if text == '':
                 self.completion_matches = ["/" + n + " " for n in self.completenames('')]
                 self.completion_matches += self.kubectl_first_commands
-            elif text.startswith('/'):
-                self.completion_matches = ["/" + n + " " for n in self.completenames(text[1:])]
-            elif text.count(' ') == 0:  # not starting with slash
-                self.completion_matches = [n + " " for n in self.kubectl_first_commands if n.startswith(text)]
-            else:  # not first command
-                self.completion_matches = []
+            elif text.startswith('/'):  # Internal command
+
+                if text.count(' ') == 0:
+                    self.completion_matches = ["/" + n + " " for n in self.completenames(text[1:])]
+                else:
+                    cmd, args, _ = self.parseline(text)
+                    try:
+                        compfunc = getattr(self, 'complete_' + cmd)
+                    except AttributeError:
+                        compfunc = self.completedefault
+
+                    self.completion_matches = compfunc(text, args)
+
+            else:  # kubectl command
+
+                if text.count(' ') == 0:  # First command
+                    self.completion_matches = [n + " " for n in self.kubectl_first_commands if n.startswith(text)]
+                else:  # not first command
+                    cmd, args, _ = super().parseline(text)  # This is getting out of hand
+                    try:
+                        compfunc = getattr(self, 'kubectl_complete_' + cmd)
+                    except AttributeError:
+                        compfunc = self.kubectlcompletedefault
+
+                    self.completion_matches = compfunc(text, args)
 
         try:
             return self.completion_matches[state]
         except IndexError:
             return None
 
-    def do_exit(self, args):
-        return True
+    def completedefault(self, text, args):
+        return []
+
+    def kubectlcompletedefault(self, text, args):
+        return []
 
     @property
     def prompt(self) -> str:
@@ -98,10 +105,47 @@ class KubeCliInterpreter(Cmd):
         else:
             prompt += ""
 
-        ns = self._kubectl.get_current_namespace()
+        ns = self.kubectl.get_current_namespace()
         if ns:
             prompt += f"({ns}) "
         else:
             prompt += "(---) "
 
         return prompt
+
+
+class KubeCliInterpreter(KubeCliInterpreterBase):
+    kubectl_first_commands = [  # Copied from kubectl help
+        'create', 'expose', 'run', 'set', 'explain', 'get', 'edit', 'delete', 'rollout', 'scale', 'autoscale',
+        'certificate', 'cluster-info', 'top', 'cordon', 'uncordon', 'drain', 'taint', 'describe', 'logs', 'attach',
+        'exec', 'port-forward', 'proxy', 'cp', 'auth', 'diff', 'apply', 'patch', 'replace', 'wait', 'convert',
+        'kustomize', 'label', 'annotate', 'completion', 'alpha', 'api-resources', 'api-versions', 'config', 'plugin',
+        'version', 'help'
+    ]
+
+    def do_setns(self, args):
+        'Switch between namesapces'
+        if not args:
+            print("*** Invalid syntax: a single namespace expected")
+        else:
+            success = self.kubectl.set_current_namespace(args)
+            if not success:
+                self._last_command_failed = True
+
+    def do_lsns(self, args):
+        'List namespaces'
+        namespaces = self.kubectl.get_namespaces()
+        for namespace in namespaces:
+            print(namespace)
+
+    def complete_setns(self, text, args):
+        namespaces = self.kubectl.get_namespaces()
+
+        if args:
+            return [ns + " " for ns in namespaces if ns.startswith(args)]
+        else:
+            return [ns + " " for ns in namespaces]
+
+    def do_exit(self, args):
+        'Exit kubecli'
+        return True

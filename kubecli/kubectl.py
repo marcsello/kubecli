@@ -40,3 +40,7 @@ class Kubectl:
 
     def get_available_api_resources(self) -> List[str]:
         return self._inner_run_name(['api-resources'])
+
+    def get_namespaces(self) -> List[str]:
+        namespaces = self._inner_run_name(['get', 'namespace'])
+        return [ns[10:] if ns.startswith("namespace/") else ns for ns in namespaces]
