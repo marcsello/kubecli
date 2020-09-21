@@ -196,6 +196,13 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
 
         return self._handle_api_resource_as_next("pod", text)
 
+    def kubectl_complete_drain(self, text: str, line: str, args: str) -> List[str]:
+
+        if text != args:  # Ensure that we only check the first argument
+            return []
+
+        return self._handle_api_resource_as_next("node", text)
+
     def do_exit(self, args: str) -> bool:
         'Exit kubecli'
         return True
