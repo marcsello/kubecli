@@ -127,7 +127,7 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
         'version', 'help'
     ]
 
-    def do_setns(self, args):
+    def do_setns(self, args: str):
         'Switch between namesapces'
         if not args:
             print("*** Invalid syntax: a single namespace expected")
@@ -136,13 +136,13 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
             if not success:
                 self._last_command_failed = True
 
-    def do_lsns(self, args):
+    def do_lsns(self, args: str):
         'List namespaces'
         namespaces = self.kubectl.list_resource_of_type('namespace')
         for namespace in namespaces:
             print(namespace)
 
-    def complete_setns(self, text, line, args):
+    def complete_setns(self, text: str, line: str, args: str) -> List[str]:
         # This function is only called to complete the args
         namespaces = self.kubectl.list_resource_of_type('namespace')
 
@@ -154,15 +154,15 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
         else:
             return namespaces
 
-    def _handle_api_resource_type_as_next(self, prefix: str):
+    def _handle_api_resource_type_as_next(self, prefix: str) -> List[str]:
         available_api_resources = self.kubectl.get_available_api_resource_types()
 
         if prefix:
-            return [ns for ns in available_api_resources if ns.startswith(prefix) if ns != prefix]
+            return [ns + " " for ns in available_api_resources if ns.startswith(prefix) if ns != prefix]
         else:
-            return available_api_resources
+            return [ns + " " for ns in available_api_resources]
 
-    def _handle_api_resource_as_next(self, type_: str, prefix: str):
+    def _handle_api_resource_as_next(self, type_: str, prefix: str) -> List[str]:
         available_api_resources = self.kubectl.list_resource_of_type(type_)
 
         if prefix:
@@ -170,22 +170,29 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
         else:
             return available_api_resources
 
-    def kubectl_complete_get(self, text, line, args):
-        return self._handle_api_resource_type_as_next(args)
+    def _handle_basic_api_resource_completion(self, text: str, args: str) -> List[str]:
+        argv = args.split(' ')
+        if len(argv) == 1:
+            return self._handle_api_resource_type_as_next(text)
+        elif len(argv) == 2:
+            return self._handle_api_resource_as_next(argv[0], text)
 
-    def kubectl_complete_delete(self, text, line, args):
-        return self._handle_api_resource_type_as_next(args)
+    def kubectl_complete_get(self, text: str, line: str, args: str) -> List[str]:
+        return self._handle_basic_api_resource_completion(text, args)
 
-    def kubectl_complete_describe(self, text, line, args):
-        return self._handle_api_resource_type_as_next(args)
+    def kubectl_complete_delete(self, text: str, line: str, args: str) -> List[str]:
+        return self._handle_basic_api_resource_completion(text, args)
 
-    def kubectl_complete_logs(self, text, line, args):
+    def kubectl_complete_describe(self, text: str, line: str, args: str) -> List[str]:
+        return self._handle_basic_api_resource_completion(text, args)
+
+    def kubectl_complete_logs(self, text: str, line: str, args: str) -> List[str]:
 
         if text != args:  # Ensure that we only check the first argument
             return []
 
         return self._handle_api_resource_as_next("pod", text)
 
-    def do_exit(self, args):
+    def do_exit(self, args: str) -> bool:
         'Exit kubecli'
         return True
