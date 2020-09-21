@@ -182,20 +182,31 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
         elif len(argv) == 2:
             return self._handle_api_resource_as_next(argv[0], text)
 
+    def _handle_file_completion(self, text: str) -> List[str]:
+        dirname = os.path.dirname(text)
+        searchdir = dirname if dirname else '.'
+
+        files = os.listdir(searchdir)
+
+        suggestions = []
+        for f in files:
+            full_path = os.path.join(dirname, f)
+            if os.path.isdir(full_path):
+                full_path += '/'
+
+            if full_path.startswith(text):
+                suggestions.append(full_path)
+
+        return suggestions
+
     def kubectl_complete_get(self, text: str, line: str, args: str) -> List[str]:
         return self._handle_basic_api_resource_completion(text, line, args)
 
     def kubectl_complete_delete(self, text: str, line: str, args: str) -> List[str]:
         argv = args.split(' ')
-        if line[-1] == ' ' and argv[-1] == '-f':  # about to enter filename
-            files = [f for f in os.listdir('.') if os.path.isfile(f)]
-            return files
-
-        elif argv[-2] == '-f' and line[-1] != ' ':  # currently entering filename
-            files = [f for f in os.listdir('.') if os.path.isfile(f)]
-            return [f for f in files if f.startswith(text) if f != text]
-
-        else: # not entering a filename
+        if (line[-1] == ' ' and argv[-1] == '-f') or (argv[-2] == '-f' and line[-1] != ' '):
+            return self._handle_file_completion(text)
+        else:  # not entering a filename
             return self._handle_basic_api_resource_completion(text, line, args)
 
     def kubectl_complete_describe(self, text: str, line: str, args: str) -> List[str]:
@@ -231,23 +242,15 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
 
     def kubectl_complete_apply(self, text: str, line: str, args: str) -> List[str]:
         argv = args.split(' ')
-        if line[-1] == ' ' and argv[-1] == '-f':  # about to enter filename
-            files = [f for f in os.listdir('.') if os.path.isfile(f)]
-            return files
-
-        elif argv[-2] == '-f' and line[-1] != ' ':  # currently entering filename
-            files = [f for f in os.listdir('.') if os.path.isfile(f)]
-            return [f for f in files if f.startswith(text) if f != text]
+        # about to enter filename or currently entering one
+        if (line[-1] == ' ' and argv[-1] == '-f') or (argv[-2] == '-f' and line[-1] != ' '):
+            return self._handle_file_completion(text)
 
     def kubectl_complete_create(self, text: str, line: str, args: str) -> List[str]:
         argv = args.split(' ')
-        if line[-1] == ' ' and argv[-1] == '-f':  # about to enter filename
-            files = [f for f in os.listdir('.') if os.path.isfile(f)]
-            return files
-
-        elif argv[-2] == '-f' and line[-1] != ' ':  # currently entering filename
-            files = [f for f in os.listdir('.') if os.path.isfile(f)]
-            return [f for f in files if f.startswith(text) if f != text]
+        # about to enter filename or currently entering one
+        if (line[-1] == ' ' and argv[-1] == '-f') or (argv[-2] == '-f' and line[-1] != ' '):
+            return self._handle_file_completion(text)
 
     def do_exit(self, args: str) -> bool:
         'Exit kubecli'
