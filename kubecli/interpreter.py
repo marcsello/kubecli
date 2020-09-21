@@ -170,21 +170,24 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
         else:
             return available_api_resources
 
-    def _handle_basic_api_resource_completion(self, text: str, args: str) -> List[str]:
+    def _handle_basic_api_resource_completion(self, text: str, line: str, args: str) -> List[str]:
         argv = args.split(' ')
+        if line[-1] == ' ':
+            argv.append('')  # ugly hax ftw
+
         if len(argv) == 1:
             return self._handle_api_resource_type_as_next(text)
         elif len(argv) == 2:
             return self._handle_api_resource_as_next(argv[0], text)
 
     def kubectl_complete_get(self, text: str, line: str, args: str) -> List[str]:
-        return self._handle_basic_api_resource_completion(text, args)
+        return self._handle_basic_api_resource_completion(text, line, args)
 
     def kubectl_complete_delete(self, text: str, line: str, args: str) -> List[str]:
-        return self._handle_basic_api_resource_completion(text, args)
+        return self._handle_basic_api_resource_completion(text, line, args)
 
     def kubectl_complete_describe(self, text: str, line: str, args: str) -> List[str]:
-        return self._handle_basic_api_resource_completion(text, args)
+        return self._handle_basic_api_resource_completion(text, line, args)
 
     def kubectl_complete_logs(self, text: str, line: str, args: str) -> List[str]:
 
