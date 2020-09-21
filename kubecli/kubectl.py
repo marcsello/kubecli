@@ -38,9 +38,9 @@ class Kubectl:
     def set_current_namespace(self, namespace: str) -> bool:
         return self.run(['config', 'set-context', '--current', f'--namespace={namespace}']) == 0
 
-    def get_available_api_resources(self) -> List[str]:
+    def get_available_api_resource_types(self) -> List[str]:
         return self._inner_run_name(['api-resources'])
 
-    def get_namespaces(self) -> List[str]:
-        namespaces = self._inner_run_name(['get', 'namespace'])
-        return [ns[10:] if ns.startswith("namespace/") else ns for ns in namespaces]
+    def list_resource_of_type(self, type_: str) -> List[str]:
+        resources = self._inner_run_name(['get', type_])
+        return [res.split('/')[0] for res in resources]

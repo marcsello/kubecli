@@ -20,7 +20,7 @@ class KubeCliInterpreterBase(Cmd):
 
     def preloop(self) -> None:
         self.old_delims = readline.get_completer_delims()
-        readline.set_completer_delims('')
+        readline.set_completer_delims(self.old_delims.replace('/', '').replace('-', ''))
 
     def postloop(self) -> None:
         readline.set_completer_delims(self.old_delims)
@@ -52,47 +52,51 @@ class KubeCliInterpreterBase(Cmd):
         pass
 
     def complete(self, text, state):
+        # this function fails silently
         # The first iteration should collect possible completions
         if state == 0:
 
-            if text == '':
+            origline = readline.get_line_buffer()
+            line = origline.lstrip()
+
+            if line == '':
                 self.completion_matches = ["/" + n + " " for n in self.completenames('')]
                 self.completion_matches += self.kubectl_first_commands
-            elif text.startswith('/'):  # Internal command
+            elif line.startswith('/'):  # Internal command
 
-                if text.count(' ') == 0:
-                    self.completion_matches = ["/" + n + " " for n in self.completenames(text[1:])]
+                if line.count(' ') == 0:
+                    self.completion_matches = ["/" + n + " " for n in self.completenames(line[1:])]
                 else:
-                    cmd, args, _ = self.parseline(text)
+                    cmd, args, _ = self.parseline(line)  # This parseline handles leading slash
                     try:
                         compfunc = getattr(self, 'complete_' + cmd)
                     except AttributeError:
                         compfunc = self.completedefault
 
-                    self.completion_matches = compfunc(text, args)
+                    self.completion_matches = compfunc(text, line, args)
 
             else:  # kubectl command
 
-                if text.count(' ') == 0:  # First command
-                    self.completion_matches = [n + " " for n in self.kubectl_first_commands if n.startswith(text)]
+                if line.count(' ') == 0:  # First command
+                    self.completion_matches = [n + " " for n in self.kubectl_first_commands if n.startswith(line)]
                 else:  # not first command
-                    cmd, args, _ = super().parseline(text)  # This is getting out of hand
+                    cmd, args, _ = super().parseline(line)  # this does not  # This is getting out of hand
                     try:
                         compfunc = getattr(self, 'kubectl_complete_' + cmd)
                     except AttributeError:
                         compfunc = self.kubectlcompletedefault
 
-                    self.completion_matches = compfunc(text, args)
+                    self.completion_matches = compfunc(text, line, args)
 
         try:
             return self.completion_matches[state]
         except IndexError:
             return None
 
-    def completedefault(self, text, args):
+    def completedefault(self, text, line, args):
         return []
 
-    def kubectlcompletedefault(self, text, args):
+    def kubectlcompletedefault(self, text, line, args):
         return []
 
     @property
@@ -134,17 +138,53 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
 
     def do_lsns(self, args):
         'List namespaces'
-        namespaces = self.kubectl.get_namespaces()
+        namespaces = self.kubectl.list_resource_of_type('namespace')
         for namespace in namespaces:
             print(namespace)
 
-    def complete_setns(self, text, args):
-        namespaces = self.kubectl.get_namespaces()
+    def complete_setns(self, text, line, args):
+        # This function is only called to complete the args
+        namespaces = self.kubectl.list_resource_of_type('namespace')
 
-        if args:
-            return ["/setns" + ns + " " for ns in namespaces if ns.startswith(args)]
+        if text != args:  # Ensure that we only check the first argument
+            return []
+
+        if text:
+            return [ns for ns in namespaces if ns.startswith(args) if ns != text]
         else:
-            return ["/setns" + ns + " " for ns in namespaces]
+            return namespaces
+
+    def _handle_api_resource_type_as_next(self, prefix: str):
+        available_api_resources = self.kubectl.get_available_api_resource_types()
+
+        if prefix:
+            return [ns for ns in available_api_resources if ns.startswith(prefix) if ns != prefix]
+        else:
+            return available_api_resources
+
+    def _handle_api_resource_as_next(self, type_: str, prefix: str):
+        available_api_resources = self.kubectl.list_resource_of_type(type_)
+
+        if prefix:
+            return [ns for ns in available_api_resources if ns.startswith(prefix) if ns != prefix]
+        else:
+            return available_api_resources
+
+    def kubectl_complete_get(self, text, line, args):
+        return self._handle_api_resource_type_as_next(args)
+
+    def kubectl_complete_delete(self, text, line, args):
+        return self._handle_api_resource_type_as_next(args)
+
+    def kubectl_complete_describe(self, text, line, args):
+        return self._handle_api_resource_type_as_next(args)
+
+    def kubectl_complete_logs(self, text, line, args):
+
+        if text != args:  # Ensure that we only check the first argument
+            return []
+
+        return self._handle_api_resource_as_next("pod", text)
 
     def do_exit(self, args):
         'Exit kubecli'
