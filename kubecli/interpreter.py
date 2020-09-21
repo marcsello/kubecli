@@ -3,6 +3,8 @@ from typing import List, Optional
 from cmd import Cmd
 from kubectl import Kubectl
 import readline
+import os
+import os.path
 
 
 class KubeCliInterpreterBase(Cmd):
@@ -184,7 +186,17 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
         return self._handle_basic_api_resource_completion(text, line, args)
 
     def kubectl_complete_delete(self, text: str, line: str, args: str) -> List[str]:
-        return self._handle_basic_api_resource_completion(text, line, args)
+        argv = args.split(' ')
+        if line[-1] == ' ' and argv[-1] == '-f':  # about to enter filename
+            files = [f for f in os.listdir('.') if os.path.isfile(f)]
+            return files
+
+        elif argv[-2] == '-f' and line[-1] != ' ':  # currently entering filename
+            files = [f for f in os.listdir('.') if os.path.isfile(f)]
+            return [f for f in files if f.startswith(text) if f != text]
+
+        else: # not entering a filename
+            return self._handle_basic_api_resource_completion(text, line, args)
 
     def kubectl_complete_describe(self, text: str, line: str, args: str) -> List[str]:
         return self._handle_basic_api_resource_completion(text, line, args)
@@ -217,7 +229,25 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
 
         return self._handle_api_resource_as_next("node", text)
 
-    # TODO: Create and apply
+    def kubectl_complete_apply(self, text: str, line: str, args: str) -> List[str]:
+        argv = args.split(' ')
+        if line[-1] == ' ' and argv[-1] == '-f':  # about to enter filename
+            files = [f for f in os.listdir('.') if os.path.isfile(f)]
+            return files
+
+        elif argv[-2] == '-f' and line[-1] != ' ':  # currently entering filename
+            files = [f for f in os.listdir('.') if os.path.isfile(f)]
+            return [f for f in files if f.startswith(text) if f != text]
+
+    def kubectl_complete_create(self, text: str, line: str, args: str) -> List[str]:
+        argv = args.split(' ')
+        if line[-1] == ' ' and argv[-1] == '-f':  # about to enter filename
+            files = [f for f in os.listdir('.') if os.path.isfile(f)]
+            return files
+
+        elif argv[-2] == '-f' and line[-1] != ' ':  # currently entering filename
+            files = [f for f in os.listdir('.') if os.path.isfile(f)]
+            return [f for f in files if f.startswith(text) if f != text]
 
     def do_exit(self, args: str) -> bool:
         'Exit kubecli'
