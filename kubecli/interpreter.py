@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from typing import List, Optional
 from cmd import Cmd
-from kubectl import Kubectl
 import readline
 import os
 import os.path
+
+from .kubectl import Kubectl
 
 
 class KubeCliInterpreterBase(Cmd):

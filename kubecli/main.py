@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from interpreter import KubeCliInterpreter
-from kubectl import Kubectl
+from .interpreter import KubeCliInterpreter
+from .kubectl import Kubectl
 
 
 def main():
