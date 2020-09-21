@@ -43,4 +43,4 @@ class Kubectl:
 
     def list_resource_of_type(self, type_: str) -> List[str]:
         resources = self._inner_run_name(['get', type_])
-        return [res.split('/')[0] for res in resources]
+        return [res.split('/')[-1] for res in resources]
