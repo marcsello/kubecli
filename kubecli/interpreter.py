@@ -130,6 +130,37 @@ class KubeCliInterpreter(KubeCliInterpreterBase):
         'version', 'help'
     ]
 
+    def do_lspod(self, args: str):
+        'Get a wide list of pods in the current namespace'
+        ret = self.kubectl.run(['get', 'pods', '-o', 'wide'])
+        if ret != 0:
+            self._last_command_failed = True
+
+    def do_lssvc(self, args: str):
+        'Get a wide list of services in the current namespace'
+        ret = self.kubectl.run(['get', 'services', '-o', 'wide'])
+        if ret != 0:
+            self._last_command_failed = True
+
+    def do_lspvc(self, args: str):
+        'Get a wide list of persistent volume claims in the current namespace'
+        ret = self.kubectl.run(['get', 'persistentvolumeclaims', '-o', 'wide'])
+        if ret != 0:
+            self._last_command_failed = True
+
+    ## Namespace independent stuff
+    def do_lsnode(self, args: str):
+        'Get a wide list of nodes'
+        ret = self.kubectl.run(['get', 'nodes', '-o', 'wide'])
+        if ret != 0:
+            self._last_command_failed = True
+
+    def do_lspv(self, args: str):
+        'Get a wide list of persistent volumes'
+        ret = self.kubectl.run(['get', 'persistentvolumes', '-o', 'wide'])
+        if ret != 0:
+            self._last_command_failed = True
+
     def do_setns(self, args: str):
         'Switch between namesapces'
         if not args:
